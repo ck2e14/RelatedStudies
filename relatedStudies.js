@@ -1,3 +1,8 @@
+"use strict";
+
+// TODO attachment count needs to also do hl7/get and pass study ID. To replicate platform's approach, its hl7/get + schema call but attachment count + hl7/get is fine for MVP
+// TODO why does report modal not work for MURRAY^MICHAEL but does work for most others (e.g. TUPOU^SIONE)
+
 var print = console.log;
 let pause = async s => new Promise(r => setTimeout(r, s * 1000));
 let getStudyData = DG.ActionHelpers.getStudyInformation;
@@ -88,16 +93,16 @@ async function studyClickHandler(event) {
 
    /* if none, show user that none found */
    if (!relateds.length) {
-      $(`#${spinnerID}`).remove();
       event.target.classList.remove("active-related-btn");
       DG.Core.showMessage(`No related studies (MRN ${patientid})`, "info");
-      return;
+      return $(`#${spinnerID}`).remove();
    }
 
    /* otherwise render all the related studies from an HTML template */
    $(event.target).attr("showing-related", "true");
    insertFromTemplate($(clickedStudy)[0], clickedStudyID, relateds);
-   $(`#${spinnerID}`).remove();
+
+   return $(`#${spinnerID}`).remove();
 }
 
 async function insertFromTemplate(clickedStudy, clickedStudyID, relateds) {
@@ -112,6 +117,37 @@ async function insertFromTemplate(clickedStudy, clickedStudyID, relateds) {
          .insertAfter(clickedStudy)
          .hide()
          .fadeIn();
+   }
+}
+
+function renderSpinner(clickedStudy, clickedStudyID) {
+   $(clickedStudy)
+      .find(`[data-dicomgrid-display-name="MRN"]`)[0]
+      .insertAdjacentHTML(
+         "afterend",
+         `<div id="spinner-${clickedStudyID}" class="lds-dual-ring"></div>`
+      );
+   return `spinner-${clickedStudyID}`;
+}
+
+function formatDateStr(date) {
+   let temp = date.split("");
+   temp.splice(4, 0, "-");
+   temp.splice(7, 0, "-");
+   return temp.join("");
+}
+
+async function getNSlist() {
+   try {
+      let req = await fetch(
+         "https://nuffieldhealth.cimar.co.uk/api/v3/user/namespace/list" +
+            `?sid=${window.sessionStorage.sid}` +
+            `&account_id=2859184d-d648-40ca-9c1a-901770243d7e` +
+            `&name_and_id_only=1`
+      );
+      return await req.json();
+   } catch (error) {
+      console.log(error);
    }
 }
 
@@ -133,7 +169,8 @@ function relatedTemplate(clickedStudyID, metadata) {
    } = metadata || "";
 
    let template = `
-   <tbody class='related-appended-${clickedStudyID}'
+   <tbody class='related-appended related-appended-${clickedStudyID}'
+      id='related-appended-${clickedStudyID}'
       data-dicomgrid-study-uuid="${uuid}" 
       data-dicomgrid-engine-fqdn="storelpu.cimar.co.uk"
       data-dicomgrid-storage-namespace="${storage_namespace}"
@@ -187,18 +224,27 @@ function relatedTemplate(clickedStudyID, metadata) {
       </td>
       <td data-dicomgrid-alttag="StudyCreateDate" class="datetime">
          <span data-perm="20220812" class="primary-info">
+         <span class="primary-info">${formatDateStr(study_date)}</span>
+      </td>
+      <td class="datetime">
          <span data-dicomgrid-tag="StudyCreateDate">
             ${created.split(" ")[0]}</span>
          </span>
       </td>
-      <td class="datetime">
-         <span class="primary-info">${formatDateStr(study_date)}</span>
-      </td>
       <td class="row-actions study">
         
+       ${
+          thin
+             ? `
+               <button type="button" class="btn btn-default btn-sm btn-fa-icon" data-dicomgrid-action-click="retrieve-thin-study" rel="tooltip" data-container="body" title="" data-original-title="Retrieve thin study">
+               <i class="far fa-share fa-flip-horizontal"></i>
+               </button>
+            `
+             : ""
+       }
       <button
          class="btn btn-default btn-sm btn-fa-icon"
-         style="position: absolute; transform: scale(1.5)"
+         style="position: relative; transform: scale(1.5)"
          id="additional-${uuid}"
          data-dicomgrid-action-click="show-study-reports"
          data-dicomgrid-popover-align="right"
@@ -206,7 +252,12 @@ function relatedTemplate(clickedStudyID, metadata) {
          data-dicomgrid-hl7-count="0"
          data-dicomgrid-permissions-disabled="study_report_view study_report_hl7_view"
       >
-         <span class="fa fa-file attachment-count">&nbsp;</span><span className="ck-font">${attachment_count}</span>
+
+       
+
+      <span data-original-title="Reports" class="fa fa-file attachment-count">&nbsp;</span><span className="ck-font make-subscript">${attachment_count}</span>
+
+   
       </button>
 
          <div
@@ -270,48 +321,21 @@ function relatedTemplate(clickedStudyID, metadata) {
    return template;
 }
 
-function renderSpinner(clickedStudy, clickedStudyID) {
-   $(clickedStudy)
-      .find(`[data-dicomgrid-display-name="MRN"]`)[0]
-      .insertAdjacentHTML(
-         "afterend",
-         `<div id="spinner-${clickedStudyID}" class="lds-dual-ring"></div>`
-      );
-   return `spinner-${clickedStudyID}`;
-}
-
-function formatDateStr(date) {
-   let temp = date.split("");
-   temp.splice(4, 0, "-");
-   temp.splice(7, 0, "-");
-   return temp.join("");
-}
-
-async function getNSlist() {
-   try {
-      let req = await fetch(
-         "https://nuffieldhealth.cimar.co.uk/api/v3/user/namespace/list" +
-            `?sid=${window.sessionStorage.sid}` +
-            `&account_id=2859184d-d648-40ca-9c1a-901770243d7e` +
-            `&name_and_id_only=1`
-      );
-      return await req.json();
-   } catch (error) {
-      console.log(error);
-   }
-}
-
 function renderStylesheet() {
    let stylesheet = document.createElement("style");
 
    stylesheet.innerHTML = `
+      .related-appended * {
+         color: #416479 !important;
+      }
 
       .center-transform-y {
-         transform: translateY(-50%)
+         transform: translateY(-50%);
       }
 
       .label-info {
-         background-color: #3a3a3a !important
+         background-color: #416479 !important;
+         color: white !important;
       }
 
       .related-btn {
@@ -324,7 +348,7 @@ function renderStylesheet() {
       }
 
       .active-related-btn {
-         transform: translate(3px,-3px) rotate(90deg);
+         transform: translate(3px,-3px) rotate(180deg);
          filter: contrast(.0) brightness(1.5);
 
       }
