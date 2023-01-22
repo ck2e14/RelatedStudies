@@ -1,0 +1,11 @@
+{
+  "name": "relatedstudies",
+  "version": "1.0.0",
+  "description": "",
+  "main": "relatedStudies.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Christopher Kennedy",
+  "license": "ISC"
+}
