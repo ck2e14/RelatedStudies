@@ -1,21 +1,13 @@
 "use strict";
 
-// WARN
-// DG.ActionHelpers.getStudyInformation is not fit for purpose here because its not returning study data until fetched by the platform itself. The bug took me about 4 years to figure out. FML.
-// In other words, the getStudyInformation() method appears to be differently returning (sometimes not wit hl7 array) which is apparently based on the namespace you're in plus the search filters you've applied in the UI
-
-String.prototype.log = function () {
-   console.log(this);
-};
-
-// HTML Templating
+// Templating
 let {
-   relatedTemplate,
-   reportsModalTemplate,
-   linksArrayToHTMLstr,
    spinner,
-   hl7ReportLinkEl,
    reportLinkEl,
+   relatedTemplate,
+   hl7ReportLinkEl,
+   linksArrayToHTMLstr,
+   reportsModalTemplate,
 } = {
    relatedTemplate: function (clickedStudyID, metadata) {
       let {
@@ -64,22 +56,22 @@ let {
                <td></td>
                
                <td>
-                  <span class='label related-name-label'>${first_name}</span>
+                  <span class='label related-label'>${first_name}</span>
                   <span data-dicomgrid-tag="AccessionNumber" data-dicomgrid-size="span2">
                      <a
-                        class="click label"
+                        class="click label related-label"
                         data-dicomgrid-display-name="Accession">
                         ${accession_number}
                      </a>
                   </span>
+               </td>
+
+               <td>
                   ${
                      thin
                         ? `<span class='label label-info thin-study' data-i18n-token='study:thin'>THIN</span>`
                         : ""
                   }
-               </td>
-
-               <td>
                   <strong
                      class="upper"
                      data-dicomgrid-tag="StudyDescription"
@@ -236,14 +228,11 @@ let {
    },
 
    reportLinkEl: function (
-      { id: attachmentID, filename, version }, //  { schema }
-      phi_namespace, // other args need to come from the clicked study not the schema response, because phi_namespace from schema is for storage copy attachment
+      { id: attachmentID, filename, version }, //  { attachment }
+      phi_namespace, // other args need to come separately because they are in the parent obj to the arg1 attachment
       storage_namespace,
       study_uid
    ) {
-      console.log(
-         `attachmentID: ${attachmentID}, phi: ${phi_namespace}, filename: ${filename}, version: ${version}`
-      );
       let href =
          `/host/storelpu.cimar.co.uk/api/v3/storage/study/` +
          `${storage_namespace}/${study_uid}/attachment/${attachmentID}` +
@@ -251,11 +240,11 @@ let {
          `?phi_namespace=${phi_namespace}&sid=${getSid()}`; // + `#dark`;
 
       return `<a 
-               class="fade-in" 
-               target="_blank" 
-               rel=”noopener noreferrer” 
-               href=${href}>
-                  ${filename} ↗
+                class="fade-in" 
+                target="_blank" 
+                rel=”noopener noreferrer” 
+                href=${href}>
+                   ${filename} ↗
               </a>`;
    },
 };
@@ -264,13 +253,12 @@ let {
 let {
    print,
    pause,
+   getSid,
+   getStudyData,
    formatDateStr,
    getSiteNameCF,
-   addScript,
    closeReportsModal,
    uuidFromRowChildren,
-   getStudyData,
-   getSid,
 } = {
    pause: async seconds => new Promise(res => setTimeout(res, seconds * 1000)),
 
@@ -289,10 +277,6 @@ let {
       for (let cf of cfs) {
          if (cf.name === "CRIS Site Code") return cf.value;
       }
-   },
-
-   addScript: async function (url = "") {
-      return await $.getScript(url);
    },
 
    closeReportsModal: function (event) {
@@ -388,6 +372,10 @@ let {
             align-items: center;
          }
 
+         .related-label {
+            font-size: 1.25rem !important;
+         }
+
          .related-appended {
             transition: height .25s;
             height: 65px;
@@ -417,7 +405,7 @@ let {
          .reports-modal {
             height: fit-content;
             min-height: 200px;
-            width: 25vmin;
+            width: fit-content;
             max-width: 1200px;
             min-width: 250px;
             padding: 1rem;
@@ -585,9 +573,9 @@ let {
 // Event Handlers
 let {
    studyClickHandler,
-   onReportsModalMouseHandler,
-   reportLinkClickHandler,
    handleReportsClick,
+   reportLinkClickHandler,
+   onReportsModalMouseHandler,
 } = {
    studyClickHandler: async function (event) {
       event.target.className.includes("active-related-btn")
@@ -644,13 +632,16 @@ let {
       // }
    },
 
-   reportLinkClickHandler: function (event) {},
+   reportLinkClickHandler: function (event) {
+      //
+   },
 
    handleReportsClick: async function (event) {
+      // TODO move some of this into a rendering function and put in the Rendering object.
       event.stopPropagation();
 
       if ($(event.target).attr("data-related-reports-count") === "0") {
-         return;
+         return DG.Core.showMessage("No Reports", "error");
       }
 
       let studyID = uuidFromRowChildren(event.target);
@@ -665,17 +656,36 @@ let {
 
       /* render the reports modal */
       $(`#related-reports-modal-${studyID}`).remove();
-      $(`#related-appended-${studyID}`)[0].insertAdjacentHTML(
-         "beforeend",
-         modalHTML
-      );
+
+      $(event.target)
+         .parents(`#related-appended-${studyID}`)[0]
+         .insertAdjacentHTML("beforeend", modalHTML);
+
       $(`#related-reports-modal-${studyID}`).draggable();
       $(`#related-reports-modal-${studyID}`).resizable();
    },
 };
 
 // Async web stuff
-let { getRelateds, getNSlist, makeReportLinks, getSchema, getStudy } = {
+let {
+   addScripts,
+   getRelateds,
+   getNSlist,
+   makeReportLinks,
+   getSchema,
+   getStudy,
+} = {
+   addScripts: async function (scriptURLs = [""]) {
+      for (let url of scriptURLs) {
+         try {
+            await $.getScript(url);
+         } catch (error) {
+            console.log(error);
+         }
+      }
+      return;
+   },
+
    getSchema: async function ({ storage_namespace, study_uid, phi_namespace }) {
       let url =
          `https://storelpu.cimar.co.uk/api/v3/storage/study/` +
@@ -753,40 +763,51 @@ let { getRelateds, getNSlist, makeReportLinks, getSchema, getStudy } = {
       }
    },
 
-   makeReportLinks: /* TODO */ async function (studyData, reportModal) {
+   makeReportLinks: async function (studyData, reportModal) {
       await pause(1);
-      let linkElements = [];
-      let { hl7, uuid, storage_namespace, phi_namespace, study_uid, thin } =
-         studyData;
 
-      /* 1 - HL7 report srcs */
+      let {
+         hl7,
+         uuid,
+         storage_namespace,
+         phi_namespace,
+         study_uid,
+         thin,
+         modality,
+      } = studyData;
+      let links = [];
+
+      /* HL7 reports */
       if (hl7?.length) {
          for (let msg of hl7) {
-            linkElements.push(hl7ReportLinkEl(msg.uuid, uuid));
+            links.push(hl7ReportLinkEl(msg.uuid, uuid));
          }
       }
 
-      /* 2 - Attachment report srcs */
+      /* Storage attachment reports */
       if (!thin) {
          let schema = await getSchema(studyData);
          for (let a of schema?.attachments) {
-            linkElements.push(
+            links.push(
                reportLinkEl(a, phi_namespace, storage_namespace, study_uid)
             );
          }
       }
 
-      return linksArrayToHTMLstr(linkElements);
+      return linksArrayToHTMLstr(links);
    },
 };
 
-// ----------------------------------------------- INTERCEPT NEW STUDY ROW RENDERS -----------------------------------------
+// ----------------------------------------------- INIT SCRIPT & INTERCEPT NEW STUDY ROW RENDERS -----------------------------------------
 init: (() => {
    renderStylesheet();
-   addScript("https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.2/axios.min.js"); // addScript("https://kit.fontawesome.com/7826d24351.js");
-   addScript(
-      "https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"
-   );
+   addScripts([
+      "https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.2/axios.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js",
+   ]);
+   String.prototype.log = function () {
+      console.log(this);
+   };
    function nuffieldUIobserverCallback(mutations) {
       for (let mutationRecord of mutations) {
          if (mutationRecord.target.id !== "data-table") continue;
@@ -804,4 +825,7 @@ init: (() => {
    let nuffieldUIobserver = new MutationObserver(nuffieldUIobserverCallback);
    nuffieldUIobserver.observe($("#data-table")[0], nuffieldUIobserverConfig);
 })();
-// ---------------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+// DG.ActionHelpers.getStudyInformation is not fit for purpose here because its not returning study data until fetched by the platform itself. The bug took me about 4 years to figure out. FML.
+// In other words, the getStudyInformation() method appears to be differently returning (sometimes not wit hl7 array) which is apparently based on the namespace you're in plus the search filters you've applied in the UI
