@@ -237,7 +237,7 @@ let {
          `/host/storelpu.cimar.co.uk/api/v3/storage/study/` +
          `${storage_namespace}/${study_uid}/attachment/${attachmentID}` +
          `/version/${version}/${encodeURIComponent(filename)}` +
-         `?phi_namespace=${phi_namespace}&sid=${getSid()}`; // + `#dark`;
+         `?phi_namespace=${phi_namespace}&sid=${getSid()}${darkHTML()}`;
 
       return `<a 
                 class="fade-in" 
@@ -259,6 +259,7 @@ let {
    getSiteNameCF,
    closeReportsModal,
    uuidFromRowChildren,
+   darkHTML,
 } = {
    pause: async seconds => new Promise(res => setTimeout(res, seconds * 1000)),
 
@@ -291,6 +292,8 @@ let {
    getStudyData: DG.ActionHelpers.getStudyInformation,
 
    print: console.log,
+
+   darkHTML: () => (DG.User.isDarkModeEnabled() ? "#dark" : ""),
 };
 
 // Rendering
@@ -309,11 +312,8 @@ let {
       let uniques = new Set();
 
       for (let metadata of relateds) {
-         // if (metadata.phi_namespace !== currentPhiNS) continue;
-         // if (uniques.has(metadata.study_uid)) continue;
-
+         if (uniques.has(metadata.study_uid)) continue;
          uniques.add(metadata.study_uid);
-
          $(relatedTemplate(clickedStudyID, metadata, currentPhiNS))
             .insertAfter(clickedStudy)
             .hide()
