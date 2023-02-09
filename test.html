@@ -1,0 +1,513 @@
+<h1
+   xmlns:rng="http://relaxng.org/ns/structure/1.0"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:radlex="http://www.radlex.org/"
+   data-i18n-token="study:report-title-with-addendum"
+>
+   TLHC Report
+</h1>
+<form
+   xmlns:rng="http://relaxng.org/ns/structure/1.0"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:radlex="http://www.radlex.org/"
+   data-dicomgrid-report-type="DG0000005"
+>
+   <h3
+      data-dicomgrid-action-click="toggle-report-section"
+      style="padding-left: 20px; cursor: pointer"
+      id="element-3"
+   >
+      <small><i class="glyphicon glyphicon-chevron-down"></i></small>
+      <span data-i18n-token="report:addenda">Alert Level</span>
+   </h3>
+   <div class="ph-30 report-section" id="toggle-element-3">
+      <select
+         class="form-control w-100 js-urgency"
+         id="select-urgency"
+         name="select-urgency"
+      >
+         <option selected="" disabled="">Please select an alert level</option>
+      </select>
+      <textarea
+         id="text-input-2"
+         class="form-control w-100 js-has-quicklist"
+         style="height: 1em; display: None"
+         required=""
+         data-dicomgrid-html-disabled=""
+      ></textarea>
+   </div>
+
+   <h3
+      data-dicomgrid-action-click="toggle-report-section"
+      style="padding-left: 20px; cursor: pointer"
+      id="element-2"
+   >
+      <small><i class="glyphicon glyphicon-chevron-down"></i></small>
+      <span>Clinical History</span>
+   </h3>
+   <div class="ph-30 report-section" id="toggle-element-2">
+      <input
+         class="form-control w-100 js-urgency"
+         id="clinical-history"
+         name="clinical-history"
+         value="Not Applicable"
+         disabled=""
+      />
+   </div>
+
+   <h3
+      data-dicomgrid-action-click="toggle-report-section"
+      style="padding-left: 20px; cursor: pointer"
+      id="element-1"
+   >
+      <small><i class="glyphicon glyphicon-chevron-down"></i></small>
+      <span data-i18n-token="study:report-section">Report</span>
+   </h3>
+
+   <div
+      style="
+         margin-left: 30px;
+         margin-top: 5px;
+         margin-bottom: 5px;
+         padding: 2px;
+         background-color: #6c757d;
+         color: #ffffff;
+         border: 1px solid #6c757d;
+         border-radius: 10px;
+         width: 80px;
+         text-align: center;
+         cursor: pointer;
+      "
+      id="refreshReport"
+   >
+      Refresh
+   </div>
+
+   <div class="ph-30" id="toggle-element-1">
+      <textarea
+         class="form-control w-100"
+         style="height: 300px"
+         id="text-input-1"
+         name="text-input-1"
+      ></textarea
+      ><br />
+   </div>
+
+   <script>
+      //Initialise Important Variables
+      var studyData = DG.Reports.studyData;
+      var studyUUID = studyData.StudyUuid;
+      var site = studyData["customfield-8120df7d-3a36-46f4-aae2-9b27dbe84754"];
+      var dropdown = $("#select-urgency");
+      var textbox = $("#text-input-2");
+      var textArea = $("#text-input-1");
+      var histfield = $("#clinical-history");
+      var publicAPIbaseURL = "https://cloud.cimar.co.uk/api/v3/";
+      var pollAidenceInterval = undefined;
+
+      /////////////////////////////////////
+      //                                 //
+      //        MAIN FUNCTIONS           //
+      //                                 //
+      /////////////////////////////////////
+
+      var setAlertLevelDropdown = () => {
+         // Checks what site the study has come from and adds the appropriate dropdown options
+         dropdown.ready(function () {
+            switch (site) {
+               case "Hull":
+                  addDropdownOptions(dropdown, [
+                     "Green",
+                     "Yellow",
+                     "Orange",
+                     "Red",
+                     "Purple",
+                  ]);
+               default:
+                  addDropdownOptions(dropdown, [
+                     "Green",
+                     "Yellow",
+                     "Orange",
+                     "Red",
+                     "Critical",
+                  ]);
+            }
+         });
+
+         //Activate change listener on textbox
+         textbox.on("change", textboxChangeHandler);
+
+         //Activate change listener on dropdown
+         dropdown.on("change", dropdownChangeHandler);
+      };
+
+      var getClinicalHistory = async () => {
+         //Get HL7 messages and check if ORM exists
+         var allHL7 = await getHL7List(studyData);
+
+         //Get OBX & NTE segments from ORM message
+         var ORM = Object.keys(allHL7).includes("ORM")
+            ? await getHL7(allHL7["ORM"]["uuid"], studyUUID)
+            : null;
+
+         var OMG = Object.keys(allHL7).includes("OMG")
+            ? await getHL7(allHL7["OMG"]["uuid"], studyUUID)
+            : null;
+
+         var OBXone = ORM
+            ? ORM.segments.filter(segment => segment[0] == "OBX")
+            : [];
+         var OBXtwo = OMG
+            ? OMG.segments.filter(segment => segment[0] == "OBX")
+            : [];
+         var NTEone = ORM
+            ? ORM.segments.filter(segment => segment[0] == "NTE")
+            : [];
+         var NTEtwo = OMG
+            ? OMG.segments.filter(segment => segment[0] == "NTE")
+            : [];
+
+         //Search OBX segments for clinical history
+         var cHist = getClinicalHistoryFromOBX(OBXone);
+         cHist = cHist.concat(getClinicalHistoryFromOBX(OBXtwo));
+
+         NTEone.length ? cHist.push(NTEone[0][3]) : null;
+         NTEtwo.length ? cHist.push(NTEtwo[0][3]) : null;
+
+         //If clinical history found, stringify and put into histfield
+         histString = "";
+         for (x = 0; x < cHist.length; x++) {
+            if (x + 1 == cHist.length) {
+               histString += cHist[x];
+            } else {
+               histString += `${cHist[x]}, `;
+            }
+         }
+         //Update UI Disabled Input
+         histString.length ? histfield.val(histString) : null;
+      };
+
+      /////////////////////////////////////
+      //                                 //
+      //    GENERAL HELPER FUNCTIONS     //
+      //                                 //
+      /////////////////////////////////////
+
+      /*
+       * Background to text combos
+       */
+
+      var colourCombos = {
+         green: { backgroundColor: "green", color: "white" },
+         yellow: { backgroundColor: "yellow", color: "black" },
+         orange: { backgroundColor: "orange", color: "white" },
+         red: { backgroundColor: "red", color: "white" },
+         purple: { backgroundColor: "purple", color: "white" },
+         blue: { backgroundColor: "blue", color: "white" },
+         critical: { backgroundColor: "black", color: "white" },
+      };
+
+      /*
+       * Adds the given items as options for the dropdown
+       * @param {Element} HTML <select> element to add <options> to
+       * @param {Array} Array of items to add as <options>
+       * @return {Array} Array containing clinical history items
+       */
+      var addDropdownOptions = (element, items) => {
+         for (i of items) {
+            element.append($("<option>").val(i).html(i));
+         }
+      };
+
+      /*
+       * Manages hidden textbox value changes
+       */
+      var textboxChangeHandler = () => {
+         var currentAlert = textbox.val();
+         // Only run if the values are different
+         if (
+            currentAlert != dropdown.val() &&
+            currentAlert != "" &&
+            currentAlert != null &&
+            dropdown.val() != "Please select an alert level"
+         ) {
+            dropdown.val(currentAlert);
+            dropdown.css(colourCombos[currentAlert.toLowerCase()]);
+            // Update the preview textbox in UI
+            $("#print-select-urgency").text(currentAlert);
+         }
+      };
+
+      /*
+       * Manages changes to the Alert Level dropdown
+       */
+      var dropdownChangeHandler = () => {
+         // Update textbox values
+         textbox.val(dropdown.val());
+         textbox.text(dropdown.val());
+
+         // Update textbox colour
+         var col = dropdown.val().toLowerCase();
+         dropdown.css(colourCombos[col]);
+      };
+
+      /*
+       * Looks through OBX segments and collects a list of items matching HLH's clinical history terminology using regex
+       * @param {Array} OBX segments from ORM message
+       * @return {Array} Array containing clinical history items
+       */
+      var getClinicalHistoryFromOBX = OBX => {
+         //Set regex string and empty clinical history array
+         var reHist = /[Ll][Cc][Ss]\s?\d+|[Pp]\s?\d+|[Ff]\s?\d+/;
+         var cHist = [];
+
+         //Loop through OBX segments and match on regex string
+         for (let x = 0; x < OBX.length; x++) {
+            var matches = String(OBX[x][5]).match(reHist);
+            if (matches) {
+               var B64 =
+                  OBX[x][5].length > 4
+                     ? String(OBX[x][5][3]).match(/Base64/)
+                     : null;
+               if (!B64) {
+                  cHist.push(matches[0]);
+               }
+            }
+         }
+         return cHist;
+      };
+
+      /*
+       * Looks through OBX segments and concats results to string
+       * @param {Array} OBX segments from ORU message
+       * @return {String} String containing HL7 report
+       */
+      var stringifyReport = OBX => {
+         reportString = "";
+         for (let x = 0; x < OBX.length; x++) {
+            if (OBX[x][5] && OBX[x][5] != "None") {
+               reportString += `${OBX[x][5]} <br><br>`;
+            }
+         }
+         return reportString;
+      };
+
+      var getAidenceReport = async () => {
+         if (!reportModalIsRendered()) {
+            clearInterval(pollAidenceInterval);
+            return null;
+         }
+
+         let allHL7 = await getHL7TodayYesterday(studyData);
+
+         if (!Object.keys(allHL7).includes("ORU")) {
+            if (!errorIsRendered())
+               DG.Core.showMessage("No Aidence Report Found", "error");
+            return "";
+         }
+
+         let ORU = await getHL7(allHL7["ORU"][0]["uuid"], studyUUID); // Use index 0 because filtered out all other accessions' reports. If there are multiple for the same accession then the most recently received is the first index (fetch uses sort-by created desc)
+         let OBX = ORU.segments.filter(segment => segment[0] == "OBX");
+         let lastOBX = OBX[OBX.length - 1][5];
+
+         if (!lastOBX.includes("Veye Lung"))
+            return DG.Core.showMessage("No Aidence Report Found", "error");
+
+         let report = stringifyReport(OBX);
+
+         if (report) {
+            clearInterval(pollAidenceInterval);
+            textArea.val(report);
+            textArea.sceditor("instance").setWysiwygEditorValue(report);
+            logThatAidenceReportHasBeenReceived();
+            $(".flash-message-container").children().remove();
+         }
+
+         if (!report) {
+            DG.Core.showMessage("No Aidence Report Found", "warning");
+         }
+      };
+
+      var logThatAidenceReportHasBeenReceived = async () => {
+         let dateTime = new Date().toISOString();
+
+         let studySetUrl =
+            `https://heartlunghealth.cimar.co.uk/api/v3/study/` +
+            `set?sid=${DG.User.Settings.sid}` +
+            `&study_id=${DG.Reports.studyData.uuid}` +
+            `&customfield-88375fcb-4b12-4684-b7cf-1638e4b12262=${dateTime}`;
+
+         await fetch(studySetUrl);
+         console.log(studySetUrl);
+      };
+
+      /////////////////////////////////////
+      //                                 //
+      //      API HELPER FUNCTIONS       //
+      //                                 //
+      /////////////////////////////////////
+
+      /*
+       * Makes a request to the API for the given HL7 message on the given study
+       * @param {String} uuid - HL7 UUID
+       * @param {String} study_id - Study UUID
+       * @return {Object} Object containing details about the HL7 message see hl7/get API endpoint
+       */
+      var getHL7 = async (uuid, study_id) => {
+         return await DG.Core.ajax({
+            url: DG.Services.Hl7.get,
+            data: {
+               sid: DG.User.Settings.sid,
+               uuid: uuid,
+               study_id: study_id,
+            },
+            success: function () {},
+         });
+      };
+
+      /*
+       * Makes a request to the API for all HL7 messages attached to patient filtering on MRN and patient name
+       * @param {Object} studyData returned from DG.Reports
+       * @return {Object} Object containing all HL7 messages matching study with message types as key
+       */
+      var getHL7List = async studyData => {
+         //Call hl7/list in API and sort by date
+         const hl7List = await fetch(
+            `https://cloud.cimar.co.uk/api/v3/hl7/list?sid=${DG.User.Settings.sid}&filter.patientid.equals=${studyData.PatientId}&account_id=${DG.User.Settings.accountID}&page.rows=500&sort_by=created-desc`
+         ).then(r => r.json());
+
+         //Compile returned HL7 messages into Object based off types
+         returnList = {};
+         messages = await hl7List["messages"];
+         for (let x = 0; x < messages.length; x++) {
+            returnList[messages[x]["type"]] = messages[x];
+         }
+
+         return returnList;
+      };
+
+      var getHL7TodayYesterday = async studyData => {
+         let acc = studyData.accession_number;
+
+         let patientHL7req = await fetch(
+            `${publicAPIbaseURL}hl7/list` +
+               `?sid=${DG.User.Settings.sid}` +
+               `&filter.patientid.equals=${studyData.PatientId}` +
+               `&account_id=${DG.User.Settings.accountID}` +
+               `&created=todayyesterday` +
+               `&sort_by=created-desc`
+         );
+
+         let patientHL7resp = await patientHL7req.json();
+
+         let filteredHL7byType = {};
+
+         for (message of patientHL7resp.messages) {
+            if (!message.accession_numbers.includes(acc)) continue;
+
+            if (filteredHL7byType[message.type]) {
+               filteredHL7byType[message.type] = [
+                  ...filteredHL7byType[message.type],
+                  message,
+               ];
+            } else {
+               filteredHL7byType[message.type] = [message];
+            }
+         }
+         return filteredHL7byType;
+      };
+
+      /////////////////////////////////////
+      //                                 //
+      //      CALLING MAIN FUNCTIONS     //
+      //                                 //
+      /////////////////////////////////////
+
+      var hijackAndRepurposeCreateReportBtn = () => {
+         /* 1. Callback fn hijackedEvent() is called whenever Create Report is clicked. */
+         const hijackedEvent = async () => {
+            if (dropdown.val()) {
+               await setReportedTimeOnStudy();
+               $(newBtn).click();
+            } else
+               DG.Core.showMessage(
+                  "Please select an urgency level before finalising",
+                  "warning"
+               );
+         };
+         /* 2. Before Create Report can be clicked by a user, remove its (Report Settings) functionality via the below x2 attributes, and add the event Listener. */
+         let createBtn = $("[data-dicomgrid-action-set-id=myActionSet-ytqiz]");
+         createBtn.removeAttr("data-dicomgrid-action-click");
+         createBtn.on("click", hijackedEvent);
+
+         /* 3. Create a new button, hide it, & assign the attributes removed from Create Report btn. */
+         let newBtn = document.createElement("div");
+         $(newBtn).attr({
+            "data-dicomgrid-action-click": "radreport-run-actionset",
+            "data-dicomgrid-action-set-id": "myActionSet-ytqiz",
+         });
+
+         /* 4. Append the hidden button to the page. */
+         $(".modal-footer").prepend(newBtn);
+      };
+
+      var correctlyWriteOldUrgencyAttribsToDropdown = () => {
+         if (/^(?!.*Assigned).*$/.test(studyData.study_status)) {
+            let previousUrgency =
+               studyData["customfield-58c6413b-4ae2-4a85-b3cc-db2758a0b7a4"];
+
+            if (previousUrgency.length > 0) {
+               dropdown.val(previousUrgency);
+               dropdown.css(colourCombos[previousUrgency.toLowerCase()]);
+            } else {
+               // dropdown.val("Select Alert Urgency");
+            }
+         }
+      };
+
+      var setReportedTimeOnStudy = async () => {
+         let date = new Date();
+
+         let url =
+            `https://heartlunghealth.cimar.co.uk/api/v3/study/` +
+            `set?sid=${DG.User.Settings.sid}` +
+            `&study_id=${DG.Reports.studyData.uuid}` +
+            `&customfield-782aaf85-e714-4855-a162-ef8dd22c8fba=${date.toLocaleString()}`;
+
+         let setReq = await fetch(url);
+
+         return await setReq.json();
+      };
+
+      var errorIsRendered = () => ($(".alert-error").length ? true : false); // INFO
+
+      var reportModalIsRendered = () =>
+         $("#report-modal").length ? true : false;
+
+      $("#report-type-select").change(() => {
+         /* in here, if the template changed-to is not TLHC, wipe the necessary 
+            variables & functions and redeclare if TLHC template is reselected */
+         clearInterval(pollAidenceInterval);
+         pollAidenceInterval = undefined;
+      });
+
+      $(
+         setAlertLevelDropdown(),
+         getClinicalHistory(),
+         hijackAndRepurposeCreateReportBtn(),
+         setTimeout(() => {
+            getAidenceReport();
+            pollAidenceInterval = setInterval(
+               () => getAidenceReport(),
+               3 * 1000
+            );
+            correctlyWriteOldUrgencyAttribsToDropdown();
+         }, 0),
+         document
+            .getElementById("refreshReport")
+            .addEventListener("click", () => {
+               getAidenceReport();
+            })
+      );
+   </script>
+</form>
