@@ -32,77 +32,88 @@ let {
       let reportsCount = attachment_count + hl7.length;
 
       let template = `
-         <tbody class='related-appended related-appended-for-${clickedStudyID}'
+         <tbody 
             id='related-appended-${uuid}'
+            class='related-appended related-appended-for-${clickedStudyID}'
             data-dicomgrid-study-uuid="${uuid}" 
             data-dicomgrid-engine-fqdn="storelpu.cimar.co.uk"
             data-dicomgrid-storage-namespace="${storage_namespace}"
             data-dicomgrid-study-uid="${study_uid}"
             data-dicomgrid-phi-namespace="${phi_namespace}"
             data-dicomgrid-study-patient-name="${patient_name}"
-            data-dicomgrid-modality="${modality}"
-            style="cursor: pointer; pointer-events: stroke;">
-            <tr
-               valign="top"
-               data-dicomgrid-study-uuid="${uuid}"
-               data-dicomgrid-engine-fqdn="storelpu.cimar.co.uk"
-               data-dicomgrid-storage-namespace="${storage_namespace}"
-               data-dicomgrid-study-uid="${study_uid}"
-               data-dicomgrid-phi-namespace="${phi_namespace}"
-               data-dicomgrid-study-patient-name="${patient_name}"
-               data-dicomgrid-modality="${modality}"
-               class="sort sortables simplified">
-               
-               <td></td>
-               
-               <td>
-                  <span class='label related-label'>${first_name}</span>
-                  <span data-dicomgrid-tag="AccessionNumber" data-dicomgrid-size="span2">
-                     <a
-                        class="click label related-label"
-                        data-dicomgrid-display-name="Accession">
-                        ${accession_number}
-                     </a>
-                  </span>
-               </td>
+            data-dicomgrid-modality="${modality}">
+               <tr
+                  valign="top"
+                  data-dicomgrid-study-uuid="${uuid}"
+                  data-dicomgrid-engine-fqdn="storelpu.cimar.co.uk"
+                  data-dicomgrid-storage-namespace="${storage_namespace}"
+                  data-dicomgrid-study-uid="${study_uid}"
+                  data-dicomgrid-phi-namespace="${phi_namespace}"
+                  data-dicomgrid-study-patient-name="${patient_name}"
+                  data-dicomgrid-modality="${modality}"
+                  class="sort sortables simplified">
+                  
+                     <td></td>
+                     
+                     <td>
+                        <span 
+                           class='label related-label' 
+                           rel="tooltip" 
+                           data-original-title="Patient">
+                              ${first_name}
+                        </span>
+                        <span data-dicomgrid-tag="AccessionNumber" data-dicomgrid-size="span2">
+                           <a
+                              class="label related-label"
+                              data-dicomgrid-display-name="Accession"
+                              rel="tooltip" 
+                              data-original-title="Accession">
+                                 ${accession_number}
+                           </a>
+                        </span>
+                     </td>
 
-               <td>
-                  ${
-                     thin
-                        ? `<span class='label label-info thin-study' data-i18n-token='study:thin'>THIN</span>`
-                        : ""
-                  }
-                  <strong
-                     class="upper"
-                     data-dicomgrid-tag="StudyDescription"
-                     data-dicomgrid-size="span3">
-                     ${study_description || "No Description"}
-                  </strong>
-                  <span class='label' data-dicomgrid-tag="Modality">(${modality})</span>
-                  <span class="secondary-info">
-                  <span class='related-site-name'>&nbsp;&nbsp; 
-                  ${
-                     getSiteNameCF(customfields)
-                        ? "(" + getSiteNameCF(customfields) + ")"
-                        : ""
-                  }
-                  </span>
-               </td>
+                     <td>
+                        ${
+                           thin
+                              ? `<span class='label label-info thin-study' data-i18n-token='study:thin'>THIN</span>`
+                              : ""
+                        }
+                        <strong
+                           class="upper"
+                           data-dicomgrid-tag="StudyDescription"
+                           data-dicomgrid-size="span3"
+                           rel="tooltip" 
+                           data-original-title="Description">
+                              ${study_description || "No Description"}
+                        </strong>
+                        <span class='label' data-dicomgrid-tag="Modality" rel="tooltip" data-original-title="Modality">
+                           (${modality})
+                        </span>
+                        <span class='related-site-name'>&nbsp;&nbsp; 
+                        ${
+                           getSiteNameCF(customfields)
+                              ? "(" + getSiteNameCF(customfields) + ")"
+                              : ""
+                        }
+                        </span>
+                     </td>
 
-               <td class="datetime">
-                  <span class="primary-info">
-                  <span class="primary-info">${formatDateStr(study_date)}</span>
-               </td>
+                     <td class="datetime">
+                        <span class="primary-info" rel="tooltip" data-original-title="Study Date">
+                           ${formatDateStr(study_date)}
+                        </span>
+                     </td>
 
-               <td class="datetime">
-                  <span data-dicomgrid-tag="StudyCreateDate">
-                     ${created.split(" ")[0]}</span>
-                  </span>
-               </td>]
+                     <td class="datetime">
+                        <span data-dicomgrid-tag="StudyCreateDate" rel="tooltip" data-original-title="Uploaded Date">
+                           ${created.split(" ")[0]}</span>
+                        </span>
+                     </td>
 
-               <td class="row-actions study" data-related-reports-count="${reportsCount}">
-                  <div class="btn-group" style="transform: scale(1)";>
-                     <div class="btn-group">
+                     <td class="row-actions study" data-related-reports-count="${reportsCount}">
+                        <div class="btn-group" style="transform: scale(1)";>
+                           <div class="btn-group">
                         ${
                            !thin
                               ? `
@@ -133,52 +144,54 @@ let {
                                     <i class="far fa-share fa-flip-horizontal"></i>
                               </button>`
                         }
-                     </div>
-                  </div>
+                           </div>
+                        </div>
 
-                  <div class="btn-group" data-related-reports-count="${reportsCount}">
-                     <button 
-                        onClick="handleReportsClick(event)"
-                        rel="tooltip"
-                        data-original-title="Reports" 
-                        class="btn btn-default btn-sm btn-fa-icon"
-                        style="position: relative; transform: scale(1.5)"
-                        id="additional-${uuid}"
-                        data-related-reports-count="${reportsCount}"
-                        data-dicomgrid-popover-align="right"
-                        data-dicomgrid-popover-template="study-reports-template">
-                           <span 
-                              class="fa fa-file attachment-count"
-                              onClick="handleReportsClick(event)"
-                              data-related-reports-count="${reportsCount}">
-                           </span>
-                           <span 
-                              className="ck-font make-subscript" 
+                        <div class="btn-group" data-related-reports-count="${reportsCount}">
+                           <button 
+                              onClick="reportsClickHandler(event)"
+                              rel="tooltip"
+                              data-original-title="${
+                                 reportsCount === 1
+                                    ? `${reportsCount} Report`
+                                    : `${reportsCount} Reports`
+                              }" 
+                              class="btn btn-default btn-sm btn-fa-icon"
+                              style="position: relative; transform: scale(1.5)"
+                              id="additional-${uuid}"
                               data-related-reports-count="${reportsCount}"
-                              style="font-size: .8rem;"
-                              onClick="handleReportsClick(event)">
-                                 ${reportsCount}
-                           </span>
-                     </button>
-                  </div>
-            
-                  <div
-                     class="btn-group pull-right"
-                     data-dicomgrid-status=${study_status}">
-                        <button
-                           class="btn-sm btn-fa-icon"
-                           rel="tooltip"
-                           title="Study stage"
-                           data-container="body">
-                              <div>
-                                 <span class="study-status" id="study-status-tag-${uuid}" data-dicomgrid-status="${study_status}">
-                                    ${study_status}
+                              data-dicomgrid-popover-align="right"
+                              data-dicomgrid-popover-template="study-reports-template">
+                                 <span 
+                                    class="fa fa-file attachment-count"
+                                    onClick="reportsClickHandler(event)"
+                                    data-related-reports-count="${reportsCount}">
                                  </span>
-                              </div>
-                        </button>
-                  </div>
-               </td>
-            </tr>
+                                 <span 
+                                    className="ck-font make-subscript" 
+                                    data-related-reports-count="${reportsCount}"
+                                    style="font-size: .8rem;"
+                                    onClick="reportsClickHandler(event)">
+                                       ${reportsCount}
+                                 </span>
+                           </button>
+                        </div>
+                  
+                        <div class="btn-group pull-right" data-dicomgrid-status=${study_status}">
+                           <button
+                              class="btn-sm btn-fa-icon"
+                              rel="tooltip"
+                              title="Study stage"
+                              data-container="body">
+                                 <div>
+                                    <span class="study-status" id="study-status-tag-${uuid}" data-dicomgrid-status="${study_status}">
+                                       ${study_status}
+                                    </span>
+                                 </div>
+                           </button>
+                        </div>
+                     </td>
+               </tr>
          </tbody>`;
 
       return template;
@@ -220,7 +233,7 @@ let {
    hl7ReportLinkEl: function (hl7ID, studyID) {
       return `<a 
                   target="_blank" 
-                  class="fade-in" 
+                  class="fade-in related-reports-report-link" 
                   rel=”noopener noreferrer”  
                   href="https://nuffieldhealth.cimar.co.uk/report.html?uuid=${hl7ID}&study_uuid=${studyID}&sid=${getSid()}">
                      HL7 Report  ↗
@@ -228,8 +241,8 @@ let {
    },
 
    reportLinkEl: function (
-      { id: attachmentID, filename, version }, //  { attachment }
-      phi_namespace, // other args need to come separately because they are in the parent obj to the arg1 attachment
+      { id: attachmentID, filename, version, stored }, //  { schema.attachment }
+      phi_namespace, // other args need to come separately because they're in the parent obj to the arg1 attachment
       storage_namespace,
       study_uid
    ) {
@@ -240,11 +253,12 @@ let {
          `?phi_namespace=${phi_namespace}&sid=${getSid()}${darkHTML()}`;
 
       return `<a 
-                class="fade-in" 
+                class="fade-in related-reports-report-link" 
                 target="_blank" 
                 rel=”noopener noreferrer” 
                 href=${href}>
-                   ${filename} ↗
+                   ${filename} ↗ <br>
+                   ${unixToDate()}
               </a>`;
    },
 };
@@ -260,10 +274,13 @@ let {
    closeReportsModal,
    uuidFromRowChildren,
    darkHTML,
+   unixToDate,
 } = {
    pause: async seconds => new Promise(res => setTimeout(res, seconds * 1000)),
 
    getSid: () => window.sessionStorage.sid,
+
+   unixToDate: timestamp => new Date(timestamp).toLocaleDateString("en-GB"),
 
    formatDateStr: function (date) {
       let x = date.split("");
@@ -334,7 +351,7 @@ let {
 
          $(btn).attr("rel", "tooltip");
          $(btn).attr("data-original-title", "View related");
-         $(btn).click(event => studyClickHandler(event));
+         $(btn).click(event => relatedStudiesClickHandler(event));
          $(row).find(".study-actions")[0]?.prepend(btn);
       }
    },
@@ -382,7 +399,7 @@ let {
          }
 
          .reports-modal a {
-            font-size 2rem !important;
+            font-size 2.25rem !important;
             transition: color .25s;
          }
 
@@ -431,6 +448,10 @@ let {
             color: white !important;
          }
 
+         .related-reports-report-link {
+            border-bottom: 1px solid gray;
+         }
+
          .close-report-button {
             position: absolute;
             top: 0.25rem;
@@ -439,7 +460,12 @@ let {
             padding: 5px;
             transition: color .25s;
             color:white !important;
+            cursor: pointer;
             z-index: 99999;
+         }
+
+         .tooltip-inner {
+            color: white !important;
          }
 
          #custom-reports-modal {
@@ -572,12 +598,12 @@ let {
 
 // Event Handlers
 let {
-   studyClickHandler,
-   handleReportsClick,
+   relatedStudiesClickHandler,
+   reportsClickHandler,
    reportLinkClickHandler,
    onReportsModalMouseHandler,
 } = {
-   studyClickHandler: async function (event) {
+   relatedStudiesClickHandler: async function (event) {
       event.target.className.includes("active-related-btn")
          ? event.target.classList.remove("active-related-btn")
          : event.target.classList.add("active-related-btn");
@@ -636,25 +662,20 @@ let {
       //
    },
 
-   handleReportsClick: async function (event) {
+   reportsClickHandler: async function (event) {
       // TODO move some of this into a rendering function and put in the Rendering object.
+      // WARN in this context, DG object DOES NOT WORK (hard to pin down why but see comment at top of file). So using study/get
+
       event.stopPropagation();
 
       if ($(event.target).attr("data-related-reports-count") === "0") {
          return DG.Core.showMessage("No Reports", "error");
       }
 
+      /* render/replace the reports modal with loading spinner */
       let studyID = uuidFromRowChildren(event.target);
-      let studyData = await getStudy(studyID); // WARN in this context, DG object DOES NOT WORK (hard to pin down why but see comment at top of file). So using study/get
       let modalHTML = reportsModalTemplate(studyID);
 
-      /* construct and htmlify report links, then append */
-      makeReportLinks(studyData, event.target).then(htmlLinks => {
-         $(`#reports-spinner-${studyID}`).fadeOut();
-         $(`#related-reports-modal-${studyID}`).append(htmlLinks);
-      });
-
-      /* render the reports modal */
       $(`#related-reports-modal-${studyID}`).remove();
 
       $(event.target)
@@ -663,6 +684,14 @@ let {
 
       $(`#related-reports-modal-${studyID}`).draggable();
       $(`#related-reports-modal-${studyID}`).resizable();
+
+      /* construct and htmlify report links, then populate modal */
+      let studyData = await getStudy(studyID);
+
+      makeReportLinks(studyData, event.target).then(htmlLinks => {
+         $(`#reports-spinner-${studyID}`).fadeOut();
+         $(`#related-reports-modal-${studyID}`).append(htmlLinks);
+      });
    },
 };
 
@@ -728,16 +757,16 @@ let {
    },
 
    getRelateds: async function (mrn, acc, phi_namespace) {
-      try {
-         let req = await fetch(
-            `https://nuffieldhealth.cimar.co.uk/api/v3/study/list` +
-               `?sid=${window.sessionStorage.sid}` +
-               `&filter.storage_namespace.equals=32ba21ac-3705-4558-89ac-3f58561a276c` +
-               `&filter.phi_namespace.equals=32ba21ac-3705-4558-89ac-3f58561a276c` +
-               `&filter.patientid.equals=${mrn}` +
-               `&filter.accession_number.not_equals_or_null=${acc}` +
-               `&extra=1` +
-               `&fields=[
+      // `&filter.phi_namespace.equals=a282eb9a-8b48-48dc-b229-9dd5a955dc20` + // non nuffield
+      // `&filter.storage_namespace.equals=a282eb9a-8b48-48dc-b229-9dd5a955dc20` + // non nuffield
+      let filters =
+         `?sid=${window.sessionStorage.sid}` +
+         // `&filter.storage_namespace.equals=32ba21ac-3705-4558-89ac-3f58561a276c` + // WARN these lines will vary by account. E.g. Nuffield, both of these are main org since everything is routed through main org by gateway. This would be different in Heart & Lung Health where gateways feed many folders.
+         // `&filter.phi_namespace.equals=32ba21ac-3705-4558-89ac-3f58561a276c` + // WARN these lines will vary by account. E.g. Nuffield, both of these are main org since everything is routed through main org by gateway. This would be different in Heart & Lung Health where gateways feed many folders.
+         `&filter.patientid.equals=${mrn}` +
+         `&filter.accession_number.not_equals_or_null=${acc}` +
+         `&extra=1` +
+         `&fields=[
                      "first_name",
                      "storage_namespace",
                      "study_description",
@@ -755,7 +784,11 @@ let {
                      "thin",
                      "uuid",
                      "hl7"  
-                  ]`
+                  ]`;
+      try {
+         let req = await fetch(
+            `https://heartlunghealth.cimar.co.uk/api/v3/study/list` + filters
+            // `https://nuffieldhealth.cimar.co.uk/api/v3/study/list` + filters
          );
          return await req.json();
       } catch (error) {
@@ -800,30 +833,35 @@ let {
 
 // ----------------------------------------------- INIT SCRIPT & INTERCEPT NEW STUDY ROW RENDERS -----------------------------------------
 init: (() => {
+   String.prototype.log = function () {
+      console.log(this);
+   };
+
    renderStylesheet();
    addScripts([
       "https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.2/axios.min.js",
       "https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js",
+      "https://code.jquery.com/ui/1.13.2/jquery-ui.js",
    ]);
-   String.prototype.log = function () {
-      console.log(this);
-   };
-   function nuffieldUIobserverCallback(mutations) {
-      for (let mutationRecord of mutations) {
-         if (mutationRecord.target.id !== "data-table") continue;
-         if (mutationRecord.addedNodes[0]?.nodeName !== "TBODY") continue;
 
-         /* if not continued, then current mutationRecord is the one that appended study rows to table */
-         let studyRows = [...mutationRecord.addedNodes].filter(
+   new MutationObserver(nuffieldUIobserverCallback).observe(
+      $("#data-table")[0],
+      { subtree: true, childList: true }
+   );
+
+   function nuffieldUIobserverCallback(mutations) {
+      for (let mRecord of mutations) {
+         if (mRecord.target.id !== "data-table") continue;
+         if (mRecord.addedNodes[0]?.nodeName !== "TBODY") continue;
+
+         /* if not continued, then current mRecord is the one that appended study rows to table */
+         let studyRows = [...mRecord.addedNodes].filter(
             x => x.nodeName === "TBODY"
          );
 
          renderRelatedCTAs(studyRows);
       }
    }
-   let nuffieldUIobserverConfig = { subtree: true, childList: true };
-   let nuffieldUIobserver = new MutationObserver(nuffieldUIobserverCallback);
-   nuffieldUIobserver.observe($("#data-table")[0], nuffieldUIobserverConfig);
 })();
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
