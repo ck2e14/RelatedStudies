@@ -449,7 +449,7 @@ let {
          }
 
          .related-reports-report-link {
-            border-bottom: 1px solid gray;
+            // border-bottom: 1px solid gray;
          }
 
          .close-report-button {
